@@ -1,11 +1,11 @@
-import { NgFor, NgIf } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dataset } from '../../services/dataset';
 
 @Component({
   selector: 'app-processing-worker',
-  imports: [FormsModule, NgIf, NgFor],
+  imports: [FormsModule, CommonModule],
   standalone: true,
   templateUrl: './processing-worker.html',
   styleUrl: './processing-worker.scss'
@@ -15,20 +15,27 @@ export class ProcessingWorker {
   filter: string = '';
   data: any[] = [];
   loading: boolean = false;
+
   constructor(
     private datasetService: Dataset,
     private zone: NgZone,
     private cdr: ChangeDetectorRef
   ) { }
+
   onFileSelected(event: any) {
     this.file = event.target.files[0];
   }
 
   async process() {
+    // Limpiar mediciones anteriores
+    performance.clearMarks();
+    performance.clearMeasures();
+    
+    performance.mark('start-total-process');
     if (!this.file) return alert('Seleccione un archivo');
+    
     // Número de hilos (main + worker)
     const threadCount = (typeof Worker !== 'undefined') ? 2 : 1;
-    performance.mark('start-read-worker-parse');
     const mainThreadStart = performance.now();
 
     this.zone.run(() => {
@@ -37,28 +44,37 @@ export class ProcessingWorker {
     });
 
     this.loading = true;
-    let text = '';
-    let workerTime = 0;
-    let mainThreadTime = 0;
+    let fileReadTime = 0;
+    let workerProcessingTime = 0;
+    let workerCommunicationTime = 0;
+    let mainThreadBlockingTime = 0;
+    let totalTime = 0;
+    
     try {
-      //text = await this.file.text();
-      performance.mark('end-read-worker-parse');
-      performance.measure('file-read-worker-parse', 'start-read-worker-parse', 'end-read-worker-parse');
-      //const mainThreadBeforeWorker = performance.now();
-      performance.mark('start-worker-processing-parse');
+      // Medir tiempo total de parseJson (incluye lectura + worker)
+      performance.mark('start-parse-json');
       const processedData = await this.datasetService.parseJson(this.file);
-      performance.mark('end-worker-processing-parse');
-      performance.measure('worker-processing-parse', 'start-worker-processing-parse', 'end-worker-processing-parse');
+      performance.mark('end-parse-json');
+      performance.measure('total-parse-json', 'start-parse-json', 'end-parse-json');
 
       const mainThreadAfterWorker = performance.now();
-      workerTime = performance.getEntriesByName('worker-processing-parse')[0]?.duration || 0;
-      mainThreadTime = (mainThreadAfterWorker - mainThreadStart);
+      
+      // Obtener tiempos de las mediciones
+      const totalParseTime = performance.getEntriesByName('total-parse-json')[0]?.duration || 0;
+      
+      // El tiempo de bloqueo del hilo principal es el tiempo total menos el tiempo en worker
+      // Como el worker corre en paralelo, el tiempo de bloqueo real es menor
+      mainThreadBlockingTime = mainThreadAfterWorker - mainThreadStart;
+      totalTime = totalParseTime;
 
       this.zone.run(() => {
         this.data = processedData;
         this.loading = false;
         this.cdr.detectChanges();
       });
+      
+      performance.mark('end-total-process');
+      performance.measure('total-process-time', 'start-total-process', 'end-total-process');
 
     } catch (error) {
       console.error(error);
@@ -68,18 +84,31 @@ export class ProcessingWorker {
       });
     } finally {
       this.loading = false;
-      const readTime = performance.getEntriesByName('file-read-worker-parse')[0]?.duration || 0;
-      const totalTime = readTime + mainThreadTime;
-      // Estimación de tiempo de bloqueo: tiempo en main thread menos tiempo en worker
-      const estimatedBlockingTime = mainThreadTime;
+      
+      // Obtener mediciones finales
+      const finalTotalTime = performance.getEntriesByName('total-process-time')[0]?.duration || 0;
+      const fileReadTime = performance.getEntriesByName('file-read-time')[0]?.duration || 0;
+      const workerCommTime = performance.getEntriesByName('worker-communication-time')[0]?.duration || 0;
+      const workerSerializationTime = performance.getEntriesByName('worker-serialization-time')[0]?.duration || 0;
+      const workerDeserializationTime = performance.getEntriesByName('worker-deserialization-time')[0]?.duration || 0;
+      const workerPostMessageTime = performance.getEntriesByName('worker-post-message-time')[0]?.duration || 0;
+      
       console.log('--- KPIs CON WORKER --- PROCESAR');
       console.log('Hilos utilizados:', threadCount);
-      console.log('Lectura:', readTime + ' ms');
-      console.log('Procesamiento en worker:', workerTime + ' ms');
-      console.log('Procesamiento en hilo principal:', mainThreadTime + ' ms');
-      console.log('Tiempo estimado de bloqueo de página:', estimatedBlockingTime + ' ms');
-      console.log('Total procesamiento:', totalTime + ' ms');
+      console.log('Tiempo total de procesamiento:', finalTotalTime + ' ms');
+      console.log('Tiempo de lectura de archivo:', fileReadTime + ' ms');
+      console.log('Tiempo de comunicación con worker:', workerCommTime + ' ms');
+      console.log('  - Serialización:', workerSerializationTime + ' ms');
+      console.log('  - PostMessage:', workerPostMessageTime + ' ms');
+      console.log('  - Deserialización:', workerDeserializationTime + ' ms');
+      console.log('Tiempo de bloqueo del hilo principal:', mainThreadBlockingTime + ' ms');
       console.log('Registros procesados:', this.data.length);
+      
+      // Log adicional para debugging
+      console.log('--- Performance Entries ---');
+      performance.getEntriesByType('measure').forEach(entry => {
+        console.log(`${entry.name}: ${entry.duration.toFixed(2)} ms`);
+      });
     }
   }
 
@@ -87,43 +116,62 @@ export class ProcessingWorker {
     if (!this.data || this.data.length === 0) {
       return alert('No hay datos para ordenar. Primero procese un archivo.');
     }
+    
+    // Limpiar mediciones anteriores
+    performance.clearMarks();
+    performance.clearMeasures();
+    
+    performance.mark('start-total-sort');
     // Número de hilos (main + worker)
     const threadCount = (typeof Worker !== 'undefined') ? 2 : 1;
     const mainThreadStart = performance.now();
-    performance.mark('start-worker-processing-sort');
 
     this.loading = true;
-    let workerTime = 0;
-    let mainThreadTime = 0;
+    let mainThreadBlockingTime = 0;
+    
     try {
+      performance.mark('start-sort-operation');
       const sorted = await this.datasetService.sortData(this.data);
+      performance.mark('end-sort-operation');
+      performance.measure('total-sort-operation', 'start-sort-operation', 'end-sort-operation');
 
-      performance.mark('end-worker-processing-sort');
-      performance.measure('worker-processing-sort', 'start-worker-processing-sort', 'end-worker-processing-sort');
       const mainThreadAfterWorker = performance.now();
-      workerTime = performance.getEntriesByName('worker-processing-sort')[0]?.duration || 0;
-      mainThreadTime = (mainThreadAfterWorker - mainThreadStart) - workerTime;
+      mainThreadBlockingTime = mainThreadAfterWorker - mainThreadStart;
 
       this.zone.run(() => {
         this.data = sorted;
         this.loading = false;
         this.cdr.detectChanges();
       });
+      
+      performance.mark('end-total-sort');
+      performance.measure('total-sort-time', 'start-total-sort', 'end-total-sort');
+      
     } catch (error) {
       console.error(error);
       this.loading = false;
     } finally {
-      const readTime = 0;
-      const totalTime = readTime + workerTime;
-      const estimatedBlockingTime = mainThreadTime;
+      const totalSortTime = performance.getEntriesByName('total-sort-time')[0]?.duration || 0;
+      const workerCommTime = performance.getEntriesByName('worker-communication-time')[0]?.duration || 0;
+      const workerSerializationTime = performance.getEntriesByName('worker-serialization-time')[0]?.duration || 0;
+      const workerDeserializationTime = performance.getEntriesByName('worker-deserialization-time')[0]?.duration || 0;
+      const workerPostMessageTime = performance.getEntriesByName('worker-post-message-time')[0]?.duration || 0;
+      
       console.log('--- KPIs CON WORKER --- ORDENAR');
       console.log('Hilos utilizados:', threadCount);
-      console.log('Lectura:', readTime + ' ms');
-      console.log('Procesamiento en worker:', workerTime + ' ms');
-      console.log('Procesamiento en hilo principal:', mainThreadTime + ' ms');
-      console.log('Tiempo estimado de bloqueo de página:', estimatedBlockingTime + ' ms');
-      console.log('Total procesamiento:', totalTime + ' ms');
+      console.log('Tiempo total de ordenamiento:', totalSortTime + ' ms');
+      console.log('Tiempo de comunicación con worker:', workerCommTime + ' ms');
+      console.log('  - Serialización:', workerSerializationTime + ' ms');
+      console.log('  - PostMessage:', workerPostMessageTime + ' ms');
+      console.log('  - Deserialización:', workerDeserializationTime + ' ms');
+      console.log('Tiempo de bloqueo del hilo principal:', mainThreadBlockingTime + ' ms');
       console.log('Registros procesados:', this.data.length);
+      
+      // Log adicional para debugging
+      console.log('--- Performance Entries ---');
+      performance.getEntriesByType('measure').forEach(entry => {
+        console.log(`${entry.name}: ${entry.duration.toFixed(2)} ms`);
+      });
     }
   }
 
@@ -136,43 +184,61 @@ export class ProcessingWorker {
       return alert('Ingrese un texto de filtro.');
     }
 
+    // Limpiar mediciones anteriores
+    performance.clearMarks();
+    performance.clearMeasures();
+    
+    performance.mark('start-total-filter');
     // Número de hilos (main + worker)
     const threadCount = (typeof Worker !== 'undefined') ? 2 : 1;
     const mainThreadStart = performance.now();
-    performance.mark('start-worker-processing-filter');
 
     this.loading = true;
-    let workerTime = 0;
-    let mainThreadTime = 0;
+    let mainThreadBlockingTime = 0;
+    
     try {
+      performance.mark('start-filter-operation');
       const filtered = await this.datasetService.filterData(this.data, this.filter);
+      performance.mark('end-filter-operation');
+      performance.measure('total-filter-operation', 'start-filter-operation', 'end-filter-operation');
 
-      performance.mark('end-worker-processing-filter');
-      performance.measure('worker-processing-filter', 'start-worker-processing-filter', 'end-worker-processing-filter');
       const mainThreadAfterWorker = performance.now();
-      workerTime = performance.getEntriesByName('worker-processing-filter')[0]?.duration || 0;
-      mainThreadTime = (mainThreadAfterWorker - mainThreadStart) - workerTime;
+      mainThreadBlockingTime = mainThreadAfterWorker - mainThreadStart;
 
       this.zone.run(() => {
         this.data = filtered;
         this.loading = false;
         this.cdr.detectChanges();
       });
+      
+      performance.mark('end-total-filter');
+      performance.measure('total-filter-time', 'start-total-filter', 'end-total-filter');
+      
     } catch (error) {
       console.error(error);
       this.loading = false;
     } finally {
-      const readTime = 0;
-      const totalTime = readTime + workerTime;
-      const estimatedBlockingTime = mainThreadTime;
+      const totalFilterTime = performance.getEntriesByName('total-filter-time')[0]?.duration || 0;
+      const workerCommTime = performance.getEntriesByName('worker-communication-time')[0]?.duration || 0;
+      const workerSerializationTime = performance.getEntriesByName('worker-serialization-time')[0]?.duration || 0;
+      const workerDeserializationTime = performance.getEntriesByName('worker-deserialization-time')[0]?.duration || 0;
+      const workerPostMessageTime = performance.getEntriesByName('worker-post-message-time')[0]?.duration || 0;
+      
       console.log('--- KPIs CON WORKER --- FILTRAR');
       console.log('Hilos utilizados:', threadCount);
-      console.log('Lectura:', readTime + ' ms');
-      console.log('Procesamiento en worker:', workerTime + ' ms');
-      console.log('Procesamiento en hilo principal:', mainThreadTime + ' ms');
-      console.log('Tiempo estimado de bloqueo de página:', estimatedBlockingTime + ' ms');
-      console.log('Total procesamiento:', totalTime + ' ms');
+      console.log('Tiempo total de filtrado:', totalFilterTime + ' ms');
+      console.log('Tiempo de comunicación con worker:', workerCommTime + ' ms');
+      console.log('  - Serialización:', workerSerializationTime + ' ms');
+      console.log('  - PostMessage:', workerPostMessageTime + ' ms');
+      console.log('  - Deserialización:', workerDeserializationTime + ' ms');
+      console.log('Tiempo de bloqueo del hilo principal:', mainThreadBlockingTime + ' ms');
       console.log('Registros procesados:', this.data.length);
+      
+      // Log adicional para debugging
+      console.log('--- Performance Entries ---');
+      performance.getEntriesByType('measure').forEach(entry => {
+        console.log(`${entry.name}: ${entry.duration.toFixed(2)} ms`);
+      });
     }
   }
 }

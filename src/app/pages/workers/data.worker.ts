@@ -1,18 +1,26 @@
 // data.worker.ts
-addEventListener('message', ({ data }) => {
-  const { action, fileContent, payload, filter } = data as {
+addEventListener('message', async ({ data }) => {
+  const { action, file, payload, filter } = data as {
     action: 'parse' | 'filter' | 'sort';
-    fileContent?: string;
+    file?: File;
     payload?: any[];
     filter?: string;
   };
 
   try {
-    // Determine the working dataset: either parse from fileContent or use provided payload
     let dataset: any[] = [];
 
-    if (fileContent != null) {
-      const parsed = JSON.parse(fileContent);
+    if (action === 'parse' && file) {
+      // Leer archivo directamente en el worker
+      performance.mark('start-file-read');
+      const text = await file.text();
+      performance.mark('end-file-read');
+      performance.measure('file-read-time', 'start-file-read', 'end-file-read');
+
+      const fileReadTime = performance.getEntriesByName('file-read-time')[0]?.duration || 0;
+      console.log('Tiempo de lectura de archivo:', fileReadTime + ' ms');
+
+      const parsed = JSON.parse(text);
       if (Array.isArray(parsed)) {
         dataset = parsed;
       } else {

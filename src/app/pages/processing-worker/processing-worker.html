@@ -1,12 +1,6 @@
 <div class="processing-container">
     <h2>Procesamiento de Datos (Con Web Worker)</h2>
 
-    <!-- <input type="file" (change)="onFileSelected($event)" />
-    <input type="text" [(ngModel)]="filter" placeholder="Buscar..." />
-    <button (click)="process()">Procesar</button>
-
-    <div *ngIf="loading">Procesando datos, por favor espere...</div> -->
-
     <div class="controls">
         <div class="mb-3">
             <input class="form-control" type="file" id="formFile" (change)="onFileSelected($event)">
@@ -15,7 +9,6 @@
             <div class="mb-3">
                 <input class="form-control" type="text" [(ngModel)]="filter" placeholder="Buscar...">
             </div>
-
             <div class="mb-3">
                 <button class="btn btn-primary" (click)="process()">Procesar</button>
             </div>
@@ -25,18 +18,8 @@
             <div class="mb-3">
                 <button class="btn btn-warning" (click)="ordenar()">Ordenar</button>
             </div>
-            <!-- <div class="mb-3">
-                <button class="btn btn-warning" (click)="applyFilter()">Filtrar</button>
-            </div> -->
         </div>
         <div *ngIf="loading" class="message">Procesando datos, por favor espere...</div>
-
-        <!-- <div *ngFor="let item of data">
-        <div>
-            <span class="city-id">{{ item.id }}</span>
-            <span class="city-name">{{ item.name }}</span>
-        </div>
-    </div> -->
 
         <table class="table">
             <thead>
@@ -54,36 +37,3 @@
         </table>
     </div>
 </div>
-
-<!-- <div class="controls">
-    <div class="mb-3">
-        <input class="form-control" type="file" id="formFile" (change)="onFileSelected($event)">
-    </div>
-    <div class="buscar">
-        <div class="mb-3">
-            <input class="form-control" type="text" [(ngModel)]="filter" placeholder="Buscar...">
-        </div>
-        <div class="mb-3">
-            <button class="btn btn-primary" (click)="process()">Procesar</button>
-        </div>
-        <div class="mb-3">
-            <button class="btn btn-warning" (click)="applyFilter()">Filtrar</button>
-        </div>
-    </div>
-    <div *ngIf="loading" class="message">Procesando datos, por favor espere...</div>
-
-    <table class="table">
-        <thead>
-            <tr>
-                <th scope="col">ID</th>
-                <th scope="col">Nombre</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr *ngFor="let item of data" class="data-item">
-                <th class="city-id">{{ item.id }}</th>
-                <td class="city-name">{{ item.name }}</td>
-            </tr>
-        </tbody>
-    </table>
-</div> -->

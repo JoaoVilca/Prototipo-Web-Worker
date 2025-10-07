@@ -54,12 +54,4 @@ export class Dataset {
     return result;
   }
 
-  /*async processJson(file: File, filter: string): Promise<any[]> {
-    const parsed = await this.parseJson(file);
-    if (filter && filter.trim().length > 0) {
-      return this.filterData(parsed, filter);
-    }
-    return parsed;
-  }*/
-
 }

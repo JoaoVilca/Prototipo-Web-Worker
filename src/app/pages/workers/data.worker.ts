@@ -45,9 +45,20 @@ addEventListener('message', async ({ data }) => {
         if (filter && filter.trim().length > 0) {
           const needle = filter.toLowerCase();
           result = dataset.filter(item =>
-            JSON.stringify(item).toLowerCase().includes(needle)
+            //JSON.stringify(item).toLowerCase().includes(needle)
+            item.name && item.name.toLowerCase().includes(needle.toLowerCase())
           );
         }
+
+        /*if (!filter) {
+          result = [...dataset];
+        } else {
+          const f = filter.toLowerCase();
+          result = dataset.filter(item => 
+            //JSON.stringify(item).toLowerCase().includes(f)
+            item.name && item.name.toLowerCase().includes(f.toLowerCase())
+          );
+        }*/
         break;
       case 'sort':
         if (dataset.length > 0) {
@@ -73,6 +84,7 @@ addEventListener('message', async ({ data }) => {
             });
           }
         }
+
         break;
       default:
         postMessage({ error: 'Acción no soportada' });

@@ -14,10 +14,8 @@ import { onCLS, onFCP, onLCP, onTTFB, onINP } from 'web-vitals';
 initPerfume({
   analyticsTracker: (options) => {
     if (options.metricName === 'INP') {
-      // Mostrar INP aunque sea 0
       console.log('[PERFUME INP]', options.data ?? 0);
     } else {
-      // Mostrar cualquier métrica aunque sea 0
       console.log('[PERFUME]', options.metricName, options.data ?? 0);
     }
   }
@@ -26,10 +24,8 @@ initPerfume({
 
 function logWebVitals(metric: any) {
   if (metric.name === 'INP') {
-    // Mostrar INP aunque sea 0
     console.log('[WEB VITALS INP]', Math.round(metric.value) || 0, metric);
   } else {
-    // Mostrar cualquier métrica aunque sea 0
     console.log('[WEB VITALS]', metric.name, Math.round(metric.value) || 0, metric);
   }
 }

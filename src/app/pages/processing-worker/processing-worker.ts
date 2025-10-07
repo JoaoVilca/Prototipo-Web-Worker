@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, ChangeDetectorRef, Component, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dataset } from '../../services/dataset';
 
 @Component({
   selector: 'app-processing-worker',
   imports: [FormsModule, CommonModule],
-  standalone: true,
   templateUrl: './processing-worker.html',
-  styleUrl: './processing-worker.scss'
+  styleUrl: './processing-worker.scss',
+  standalone: true
 })
 export class ProcessingWorker {
 
@@ -47,8 +47,6 @@ export class ProcessingWorker {
 
     this.loading = true;
     let fileReadTime = 0;
-    let workerProcessingTime = 0;
-    let workerCommunicationTime = 0;
     let mainThreadBlockingTime = 0;
     let totalTime = 0;
 
@@ -58,12 +56,6 @@ export class ProcessingWorker {
       const processedData = await this.datasetService.parseJson(this.file);
       performance.mark('end-parse-json');
       performance.measure('total-parse-json', 'start-parse-json', 'end-parse-json');
-
-
-
-      // El tiempo de bloqueo del hilo principal es el tiempo total menos el tiempo en worker
-      // Como el worker corre en paralelo, el tiempo de bloqueo real es menor
-
 
       // Obtener tiempos de las mediciones
       
@@ -139,8 +131,6 @@ export class ProcessingWorker {
       const sorted = await this.datasetService.sortData(this.data);
       performance.mark('end-sort-operation');
       performance.measure('total-sort-operation', 'start-sort-operation', 'end-sort-operation');
-
-
 
       const updateUI = performance.now();
       this.zone.run(() => {

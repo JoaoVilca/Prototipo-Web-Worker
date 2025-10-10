@@ -46,7 +46,6 @@ export class ProcessingWorker {
     const mainThreadMiddle = performance.now();
 
     this.loading = true;
-    let fileReadTime = 0;
     let mainThreadBlockingTime = 0;
     let totalTime = 0;
 
